@@ -62,9 +62,7 @@ let experienceObserver = null;
 let enhancedContext = null;
 let fallbackActivated = false;
 let resizeFrame = null;
-let enhancementIntentHandler = null;
-
-const INTENT_EVENTS = ["pointerdown", "pointermove", "wheel", "touchstart", "keydown", "scroll"];
+let enhancementStarted = false;
 
 function supportsWebGL2() {
   try {
@@ -435,30 +433,15 @@ function releaseEnhancedExperience() {
   experience = null;
 }
 
-function disarmEnhancement() {
-  if (enhancementIntentHandler) {
-    INTENT_EVENTS.forEach((eventName) => {
-      window.removeEventListener(eventName, enhancementIntentHandler);
-    });
-    enhancementIntentHandler = null;
-  }
-}
-
-function armEnhancement() {
-  if (destroyed || fallbackActivated || reducedMotion.matches) return;
-  enhancementIntentHandler = () => {
-    disarmEnhancement();
-    enhance();
-  };
-  INTENT_EVENTS.forEach((eventName) => {
-    window.addEventListener(eventName, enhancementIntentHandler, { passive: true });
-  });
+function startEnhancement() {
+  if (enhancementStarted || destroyed || fallbackActivated || reducedMotion.matches) return;
+  enhancementStarted = true;
+  void enhance();
 }
 
 function activateRuntimeFallback(reason) {
   if (destroyed || fallbackActivated) return;
   fallbackActivated = true;
-  disarmEnhancement();
   releaseEnhancedExperience();
   initFallbackReveals();
   setFallback(reason);
@@ -543,7 +526,6 @@ async function enhance() {
 function destroy() {
   if (destroyed) return;
   destroyed = true;
-  disarmEnhancement();
   releaseEnhancedExperience();
 }
 
@@ -559,7 +541,7 @@ if (reducedMotion.matches) {
   initFallbackReveals();
   setFallback("webgl2-unavailable");
 } else {
-  window.requestAnimationFrame(() => window.requestAnimationFrame(armEnhancement));
+  window.requestAnimationFrame(() => window.requestAnimationFrame(startEnhancement));
 }
 
 reducedMotion.addEventListener?.("change", (event) => {
